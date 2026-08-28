@@ -23,7 +23,7 @@ interface RequestOptions {
   auth?: boolean;
   /** JSON body. Ignored when `form` or `files` is provided. */
   body?: Record<string, unknown>;
-  /** Multipart text fields (used by `/api/provider/register`). */
+  /** Multipart text fields (used by `POST /api/provider/profile`). */
   form?: Record<string, string | number | boolean | undefined | null>;
   /** Multipart file fields. */
   files?: Record<string, UploadFile | undefined>;

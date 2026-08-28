@@ -6,7 +6,7 @@ import {
 
 import {AUTH_CONFIG, PROVIDER_API_BASE_URL} from '../config/env';
 import {ApiUser, LoginData} from '../types';
-import {api, ApiError, UploadFile} from './api';
+import {api, UploadFile} from './api';
 import {storage} from './storage';
 
 type PendingConfirmation = Awaited<ReturnType<typeof signInWithPhoneNumber>>;
@@ -110,8 +110,9 @@ type ProviderAuthPayload = {
 
 const toLoginData = (payload: unknown): LoginData => {
   const record = asRecord(payload);
+  const nested = asRecord(record.data);
   const user = normalizeProvider(payload);
-  const token = firstString(record.token);
+  const token = firstString(record.token, nested.token);
 
   if (!token) {
     throw new Error('Login succeeded but no session token was returned.');
@@ -127,7 +128,27 @@ const toLoginData = (payload: unknown): LoginData => {
 export type RestoredSession =
   | {route: 'Login'}
   | {route: 'Home'}
-  | {route: 'ProfileSetup'; phoneNumber: string};
+  | {route: 'ProfileSetup'; phoneNumber: string}
+  | {route: 'RegistrationDocuments'; phoneNumber: string};
+
+const sessionFromUser = async (user: ApiUser): Promise<RestoredSession> => {
+  const local = await storage.getLocalProfile();
+  const phoneNumber = toLocalPhone(user.phoneNumber);
+
+  if (local?.registrationStep === 2) {
+    return {route: 'RegistrationDocuments', phoneNumber};
+  }
+
+  if (
+    isUserProfileComplete(user) &&
+    local?.registrationStep !== 1 &&
+    local?.registrationStep !== 2
+  ) {
+    return {route: 'Home'};
+  }
+
+  return {route: 'ProfileSetup', phoneNumber};
+};
 
 const firebaseAuthMessage = (error: unknown, fallback: string): Error => {
   const code =
@@ -199,25 +220,6 @@ export const authService = {
   },
 
   /**
-   * If Play Services already signed the user in before the OTP screen
-   * subscribed, return the ID token immediately.
-   */
-  async consumeAutoVerifiedSession(): Promise<string | null> {
-    if (!awaitingAutoVerification) {
-      return null;
-    }
-
-    const user = getAuth().currentUser;
-    if (!user) {
-      return null;
-    }
-
-    awaitingAutoVerification = false;
-    pendingConfirmation = null;
-    return user.getIdToken(true);
-  },
-
-  /**
    * On Android, Firebase can auto-verify the SMS and sign the user in without
    * manual code entry. Listen for that and complete the backend login flow.
    */
@@ -226,7 +228,7 @@ export const authService = {
     onError?: (error: Error) => void,
   ): () => void {
     const unsubscribe = onAuthStateChanged(getAuth(), async user => {
-      if (!awaitingAutoVerification || !user) {
+      if (!awaitingAutoVerification || !pendingConfirmation || !user) {
         return;
       }
 
@@ -251,7 +253,7 @@ export const authService = {
 
   /**
    * Confirms the SMS code with Firebase and returns the fresh Firebase ID token.
-   * The backend `/api/provider/register` endpoint verifies this token via firebase-admin.
+   * The backend `/login` endpoint verifies this token via firebase-admin.
    */
   async confirmOtp(code: string): Promise<string> {
     if (!pendingConfirmation) {
@@ -279,71 +281,31 @@ export const authService = {
   },
 
   /**
-   * Registers or logs in the provider via `POST /api/provider/register`
-   * (multipart form). Sends the Firebase ID token; extra profile fields are
-   * only included when completing KYC so a login-only call does not fail
-   * required-field validation.
+   * Logs in the provider via `POST /api/provider/login` with the Firebase
+   * ID token — same pattern as CareFIngerUserApp `POST /api/patient/login`.
    */
   async login(
     idToken: string,
     extra?: {
       name?: string;
       email?: string;
-      experience?: string | number;
-      education?: string;
-      bloodGroup?: string;
-      emergencyContact?: string;
-      aadhaarNumber?: string;
-      panNumber?: string;
       lat?: number;
       lng?: number;
-      address?: string;
-      city?: string;
-      state?: string;
-      upiId?: string;
-      accountHolderName?: string;
-      bankName?: string;
-      accountNumber?: string;
-      ifscCode?: string;
       fcmToken?: string;
-      profileImage?: UploadFile;
-      aadhaarFrontImage?: UploadFile;
-      aadhaarBackImage?: UploadFile;
-      panFrontImage?: UploadFile;
-      panBackImage?: UploadFile;
       keepSignedIn?: boolean;
     },
   ): Promise<LoginData> {
     const {keepSignedIn = true, ...loginFields} = extra ?? {};
-    const {
-      profileImage,
-      aadhaarFrontImage,
-      aadhaarBackImage,
-      panFrontImage,
-      panBackImage,
-      ...formFields
-    } = loginFields;
-
-    const payload = await api.post<ProviderAuthPayload>('/register', {
+    const payload = await api.post<ProviderAuthPayload>('/login', {
       baseUrl: PROVIDER_API_BASE_URL,
-      form: {
-        idToken,
-        ...formFields,
-      },
-      files: {
-        profileImage,
-        aadhaarFrontImage,
-        aadhaarBackImage,
-        panFrontImage,
-        panBackImage,
-      },
+      body: {idToken, ...loginFields},
     });
 
     const data = toLoginData(payload);
 
     await storage.setToken(data.token);
     await storage.setUser(data.user);
-    await storage.setKeepSignedIn(keepSignedIn);
+    await storage.setKeepSignedIn(keepSignedIn !== false);
 
     return data;
   },
@@ -365,17 +327,36 @@ export const authService = {
     address?: string;
     city?: string;
     state?: string;
+    aadhaarFrontImage?: UploadFile;
+    aadhaarBackImage?: UploadFile;
+    licenseFrontImage?: UploadFile;
+    licenseBackImage?: UploadFile;
   }): Promise<ApiUser> {
-    const {profilePicture, vehicleNumber, vehicleModel, ...formFields} = fields;
+    const {
+      profilePicture,
+      vehicleNumber,
+      vehicleModel,
+      aadhaarFrontImage,
+      aadhaarBackImage,
+      licenseFrontImage,
+      licenseBackImage,
+      ...formFields
+    } = fields;
     const profileImage = isLocalFileUri(profilePicture)
       ? {uri: profilePicture as string, name: 'profile.jpg'}
       : undefined;
 
-    const provider = await api.post<unknown>('/update-profile', {
+    const provider = await api.post<unknown>('/profile', {
       auth: true,
       baseUrl: PROVIDER_API_BASE_URL,
       form: formFields,
-      files: {profileImage},
+      files: {
+        profileImage,
+        aadhaarFrontImage,
+        aadhaarBackImage,
+        panFrontImage: licenseFrontImage,
+        panBackImage: licenseBackImage,
+      },
     });
 
     const user = normalizeProvider(provider);
@@ -416,33 +397,13 @@ export const authService = {
 
     try {
       const user = await this.me();
-      if (isUserProfileComplete(user)) {
-        return {route: 'Home'};
+      return await sessionFromUser(user);
+    } catch {
+      // Keep the saved session. Do not force OTP login again after a
+      // profile refresh failure (network, 401 from a stale route, etc.).
+      if (cachedUser) {
+        return await sessionFromUser(cachedUser);
       }
-      return {
-        route: 'ProfileSetup',
-        phoneNumber: toLocalPhone(user.phoneNumber),
-      };
-    } catch (error) {
-      if (
-        error instanceof ApiError &&
-        (error.status === 401 || error.status === 403)
-      ) {
-        await this.logout();
-        return {route: 'Login'};
-      }
-
-      if (cachedUser && isUserProfileComplete(cachedUser)) {
-        return {route: 'Home'};
-      }
-
-      if (cachedUser?.phoneNumber) {
-        return {
-          route: 'ProfileSetup',
-          phoneNumber: toLocalPhone(cachedUser.phoneNumber),
-        };
-      }
-
       return {route: 'Home'};
     }
   },

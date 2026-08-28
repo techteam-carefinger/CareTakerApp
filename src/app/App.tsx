@@ -7,6 +7,7 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {LoginScreen} from '../screens/LoginScreen';
 import {OtpVerificationScreen} from '../screens/OtpVerificationScreen';
 import {ProfileSetupScreen} from '../screens/ProfileSetupScreen';
+import {RegistrationDocumentsScreen} from '../screens/RegistrationDocumentsScreen';
 import {HomeScreen} from '../screens/HomeScreen';
 import {EarningsScreen} from '../screens/EarningsScreen';
 import {JobHistoryScreen} from '../screens/JobHistoryScreen';
@@ -68,7 +69,20 @@ function App() {
             component={ProfileSetupScreen}
             initialParams={{
               phoneNumber:
-                session.route === 'ProfileSetup' ? session.phoneNumber : '',
+                session.route === 'ProfileSetup' ||
+                session.route === 'RegistrationDocuments'
+                  ? session.phoneNumber
+                  : '',
+            }}
+          />
+          <Stack.Screen
+            name="RegistrationDocuments"
+            component={RegistrationDocumentsScreen}
+            initialParams={{
+              phoneNumber:
+                session.route === 'RegistrationDocuments'
+                  ? session.phoneNumber
+                  : '',
             }}
           />
           <Stack.Screen name="Home" component={HomeScreen} />

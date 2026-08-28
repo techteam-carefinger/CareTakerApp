@@ -7,6 +7,9 @@ export type RootStackParamList = {
   ProfileSetup: {
     phoneNumber: string;
   };
+  RegistrationDocuments: {
+    phoneNumber: string;
+  };
   Home: undefined;
   Earnings: undefined;
   JobHistory: undefined;

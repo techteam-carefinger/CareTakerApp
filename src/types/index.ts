@@ -49,6 +49,12 @@ export interface LocalProfile {
   vehicleNumber?: string;
   vehicleModel?: string;
   emergencyContact?: string;
+  firstName?: string;
+  lastName?: string;
+  gender?: 'male' | 'female';
+  shift?: string;
+  serviceType?: string;
+  registrationStep?: 1 | 2 | 'done';
 }
 
 export interface CapturedLocation {

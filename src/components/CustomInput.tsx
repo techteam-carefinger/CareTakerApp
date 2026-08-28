@@ -16,10 +16,15 @@ type CustomInputProps = {
   placeholder?: string;
   prefix?: string;
   leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
   keyboardType?: KeyboardTypeOptions;
   maxLength?: number;
   error?: string;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  secureTextEntry?: boolean;
+  multiline?: boolean;
+  editable?: boolean;
+  variant?: 'default' | 'subtle';
   style?: ViewStyle;
 };
 
@@ -29,10 +34,15 @@ export function CustomInput({
   placeholder,
   prefix,
   leftIcon,
+  rightIcon,
   keyboardType = 'default',
   maxLength,
   error,
   autoCapitalize = 'none',
+  secureTextEntry = false,
+  multiline = false,
+  editable = true,
+  variant = 'default',
   style,
 }: CustomInputProps) {
   const hasPrefix = Boolean(prefix);
@@ -42,10 +52,20 @@ export function CustomInput({
       <View
         style={[
           styles.inputWrapper,
+          variant === 'subtle' && styles.subtleWrapper,
+          multiline && styles.multilineWrapper,
           error ? styles.errorBorder : undefined,
           style,
         ]}>
-        {hasPrefix ? <Text style={styles.prefix}>{prefix}</Text> : null}
+        {hasPrefix ? (
+          <Text
+            style={[
+              styles.prefix,
+              variant === 'subtle' && styles.subtlePrefix,
+            ]}>
+            {prefix}
+          </Text>
+        ) : null}
         {hasPrefix ? <View style={styles.divider} /> : null}
         {leftIcon ? <View style={styles.leftIcon}>{leftIcon}</View> : null}
         <TextInput
@@ -53,11 +73,16 @@ export function CustomInput({
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={COLORS.textSecondary}
-          style={styles.input}
+          style={[styles.input, multiline && styles.multilineInput]}
           keyboardType={keyboardType}
           maxLength={maxLength}
           autoCapitalize={autoCapitalize}
+          secureTextEntry={secureTextEntry}
+          multiline={multiline}
+          editable={editable}
+          textAlignVertical={multiline ? 'top' : 'center'}
         />
+        {rightIcon ? <View style={styles.rightIcon}>{rightIcon}</View> : null}
       </View>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
@@ -91,11 +116,29 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
     marginHorizontal: 10,
   },
+  subtleWrapper: {
+    borderColor: '#D5DBE3',
+    borderRadius: 16,
+  },
+  subtlePrefix: {
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.regular,
+  },
+  multilineWrapper: {
+    height: 92,
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+  },
   leftIcon: {
     width: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
+  },
+  rightIcon: {
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     flex: 1,
@@ -107,6 +150,10 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     includeFontPadding: false,
     textAlignVertical: 'center',
+  },
+  multilineInput: {
+    height: '100%',
+    paddingTop: 2,
   },
   errorBorder: {
     borderColor: COLORS.error,

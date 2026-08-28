@@ -50,11 +50,12 @@ export function OtpVerificationScreen({
         keepSignedIn,
       });
 
-      if (isProfileComplete) {
-        navigation.replace('Home');
-      } else {
-        navigation.replace('ProfileSetup', {phoneNumber});
-      }
+      navigation.reset({
+        index: 0,
+        routes: isProfileComplete
+          ? [{name: 'Home'}]
+          : [{name: 'ProfileSetup', params: {phoneNumber}}],
+      });
     },
     [keepSignedIn, navigation, phoneNumber],
   );
@@ -70,11 +71,12 @@ export function OtpVerificationScreen({
   });
 
   useEffect(() => {
-    let cancelled = false;
-    let unsubscribe = () => {};
+    if (!authService.hasPendingOtp()) {
+      return;
+    }
 
-    const finishWithToken = async (idToken: string) => {
-      if (cancelled || hasAutoVerifiedRef.current) {
+    const unsubscribe = authService.subscribeAutoVerification(async idToken => {
+      if (hasAutoVerifiedRef.current) {
         return;
       }
 
@@ -90,26 +92,11 @@ export function OtpVerificationScreen({
             : 'Automatic verification failed. Please enter the OTP manually.';
         Alert.alert('Verification failed', message);
       } finally {
-        if (!cancelled) {
-          setIsVerifying(false);
-        }
-      }
-    };
-
-    unsubscribe = authService.subscribeAutoVerification(idToken => {
-      void finishWithToken(idToken);
-    });
-
-    void authService.consumeAutoVerifiedSession().then(existingToken => {
-      if (existingToken) {
-        void finishWithToken(existingToken);
+        setIsVerifying(false);
       }
     });
 
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
+    return unsubscribe;
   }, [completeLogin]);
 
   useEffect(() => {
@@ -135,7 +122,7 @@ export function OtpVerificationScreen({
     [phoneNumber],
   );
   const isOtpValid = otp.length === OTP_LENGTH;
-  const canResend = countdown === 0 && !isResending;
+  const canResend = countdown === 0;
 
   const handleOtpChange = (nextOtp: string) => {
     setOtp(nextOtp.replace(/\D/g, '').slice(0, OTP_LENGTH));
@@ -232,11 +219,7 @@ export function OtpVerificationScreen({
           <Pressable disabled={!canResend} onPress={onResend}>
             <Text
               style={[styles.resendText, !canResend && styles.resendDisabled]}>
-              {canResend
-                ? isResending
-                  ? 'Sending...'
-                  : 'Resend code'
-                : `Resend in ${countdown}s`}
+              {canResend ? 'Resend code' : `Resend in ${countdown}s`}
             </Text>
           </Pressable>
         </View>

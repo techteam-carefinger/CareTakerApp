@@ -1,201 +1,332 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {CustomButton, CustomInput} from '../components';
 import {COLORS, FONTS} from '../constants';
 import {RootStackParamList} from '../navigation/types';
 import {authService, storage} from '../services';
-
-const LOGO = require('../../assets/logo.png');
+import {pickImage} from '../utils/pickImage';
 
 type ProfileSetupScreenProps = NativeStackScreenProps<
   RootStackParamList,
   'ProfileSetup'
 >;
 
+type Gender = 'male' | 'female';
+
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
-export function ProfileSetupScreen({navigation, route}: ProfileSetupScreenProps) {
+const capitalizeName = (value: string) =>
+  value
+    .split(' ')
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+
+export function ProfileSetupScreen({
+  navigation,
+  route,
+}: ProfileSetupScreenProps) {
   const {phoneNumber} = route.params;
 
-  const [fullName, setFullName] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [vehicleNumber, setVehicleNumber] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
+  const [phone, setPhone] = useState(phoneNumber.replace(/\D/g, '').slice(-10));
+  const [password, setPassword] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [address, setAddress] = useState('');
+  const [gender, setGender] = useState<Gender>('male');
   const [isSaving, setIsSaving] = useState(false);
 
-  const trimmedFullName = fullName.trim();
-  const trimmedEmail = email.trim();
-  const trimmedVehicleNumber = vehicleNumber.trim().toUpperCase();
-  const trimmedVehicleModel = vehicleModel.trim();
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const [user, local] = await Promise.all([
+        storage.getUser(),
+        storage.getLocalProfile(),
+      ]);
+      if (cancelled) {
+        return;
+      }
 
-  const fullNameError =
-    fullName.length === 0
+      const fullName = user?.name?.trim() ?? '';
+      const [storedFirst, ...rest] = fullName.split(' ').filter(Boolean);
+      setFirstName(local?.firstName || storedFirst || '');
+      setLastName(local?.lastName || rest.join(' ') || '');
+      setEmail(user?.email ?? '');
+      setAddress(local?.address ?? '');
+      if (local?.gender) {
+        setGender(local.gender);
+      }
+      if (user?.profilePicture) {
+        setPhotoUri(user.profilePicture);
+      }
+      if (user?.phoneNumber) {
+        setPhone(user.phoneNumber.replace(/\D/g, '').slice(-10));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const trimmedFirstName = firstName.trim();
+  const trimmedLastName = lastName.trim();
+  const trimmedEmail = email.trim();
+  const trimmedAddress = address.trim();
+
+  const firstNameError =
+    firstName.length === 0
       ? undefined
-      : trimmedFullName.length < 3
-        ? 'Full name should be at least 3 characters'
+      : trimmedFirstName.length < 2
+        ? 'Enter a valid first name'
+        : undefined;
+  const lastNameError =
+    lastName.length === 0
+      ? undefined
+      : trimmedLastName.length < 2
+        ? 'Enter a valid last name'
         : undefined;
   const emailError =
     trimmedEmail.length > 0 && !isValidEmail(trimmedEmail)
       ? 'Enter a valid email address'
       : undefined;
-  const vehicleError =
-    vehicleNumber.length === 0
+  const phoneError =
+    phone.length === 0
       ? undefined
-      : trimmedVehicleNumber.length < 4
-        ? 'Enter a valid vehicle number'
+      : phone.length !== 10
+        ? 'Enter a valid 10-digit mobile number'
+        : undefined;
+  const passwordError =
+    password.length === 0
+      ? undefined
+      : password.length < 6
+        ? 'Password must be at least 6 characters'
+        : undefined;
+  const addressError =
+    address.length === 0
+      ? undefined
+      : trimmedAddress.length < 6
+        ? 'Enter a valid address'
         : undefined;
 
-  const isSaveDisabled =
-    trimmedFullName.length < 3 ||
-    trimmedVehicleNumber.length < 4 ||
-    (trimmedEmail.length > 0 && !isValidEmail(trimmedEmail));
+  const isContinueDisabled =
+    trimmedFirstName.length < 2 ||
+    trimmedLastName.length < 2 ||
+    phone.length !== 10 ||
+    password.length < 6 ||
+    trimmedAddress.length < 6 ||
+    (trimmedEmail.length > 0 && !isValidEmail(trimmedEmail)) ||
+    isSaving;
 
-  const onChangeFullName = (value: string) => {
-    setFullName(value.replace(/\s{2,}/g, ' '));
+  const onPickPhoto = async () => {
+    const file = await pickImage('Profile photo');
+    if (file?.uri) {
+      setPhotoUri(file.uri);
+    }
   };
 
-  const onSaveProfile = async () => {
-    if (isSaveDisabled || isSaving) {
+  const onContinue = async () => {
+    if (isContinueDisabled) {
       return;
     }
 
-    const normalizedFullName = trimmedFullName
-      .split(' ')
-      .filter(Boolean)
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
+    const fullName = capitalizeName(`${trimmedFirstName} ${trimmedLastName}`);
 
     setIsSaving(true);
     try {
       await authService.updateProfile({
-        name: normalizedFullName,
+        name: fullName,
         email: trimmedEmail || undefined,
-        vehicleNumber: trimmedVehicleNumber,
-        vehicleModel: trimmedVehicleModel || undefined,
+        address: trimmedAddress,
+        profilePicture: photoUri || undefined,
       });
       await storage.setLocalProfile({
-        address: address.trim() || undefined,
-        vehicleNumber: trimmedVehicleNumber,
-        vehicleModel: trimmedVehicleModel || undefined,
+        ...(await storage.getLocalProfile()),
+        firstName: capitalizeName(trimmedFirstName),
+        lastName: capitalizeName(trimmedLastName),
+        address: trimmedAddress,
+        gender,
+        registrationStep: 2,
       });
-      navigation.replace('Home');
+      navigation.navigate('RegistrationDocuments', {phoneNumber});
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : 'Could not save your profile. Please try again.';
-      Alert.alert('Profile setup failed', message);
+      Alert.alert('Registration failed', message);
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.backgroundCircleTop} />
-      <View style={styles.backgroundCircleBottom} />
-
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        style={styles.keyboardContainer}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled">
-          <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.backButton}>
-            <Text style={styles.backIcon}>‹</Text>
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          {navigation.canGoBack() ? (
+            <Pressable
+              onPress={() => navigation.goBack()}
+              hitSlop={10}
+              style={styles.backButton}>
+              <Ionicons name="chevron-back" size={22} color={COLORS.textPrimary} />
+            </Pressable>
+          ) : (
+            <View style={styles.backButton} />
+          )}
+
+          <Pressable style={styles.avatarButton} onPress={() => void onPickPhoto()}>
+            {photoUri ? (
+              <Image
+                source={{uri: photoUri}}
+                style={styles.avatarImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Ionicons name="person" size={54} color="#B8BFC6" />
+              </View>
+            )}
           </Pressable>
 
-          <View style={styles.headerSection}>
-            <Image source={LOGO} resizeMode="contain" style={styles.logo} />
+          <View style={styles.nameRow}>
+            <View style={styles.nameField}>
+              <CustomInput
+                variant="subtle"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="First Name"
+                autoCapitalize="words"
+                error={firstNameError}
+              />
+            </View>
+            <View style={styles.nameField}>
+              <CustomInput
+                variant="subtle"
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Last Name"
+                autoCapitalize="words"
+                error={lastNameError}
+              />
+            </View>
           </View>
 
-          <View style={styles.titleSection}>
-            <Text style={styles.title}>Caretaker Setup</Text>
-            <Text style={styles.subtitle}>
-              Complete your profile so nearby patients can find you.
-            </Text>
-            <Text style={styles.phoneHint}>Signed in as +91 {phoneNumber}</Text>
-          </View>
-
-          <View style={styles.formSection}>
-            <Text style={styles.label}>
-              Full Name <Text style={styles.required}>*</Text>
-            </Text>
+          <View style={styles.fieldGap}>
             <CustomInput
-              value={fullName}
-              onChangeText={onChangeFullName}
-              placeholder="Enter your full name"
-              leftIcon={<Text style={styles.inputIcon}>👤</Text>}
-              keyboardType="default"
-              autoCapitalize="words"
-              error={fullNameError}
-            />
-
-            <Text style={styles.label}>Email (Optional)</Text>
-            <CustomInput
+              variant="subtle"
               value={email}
               onChangeText={setEmail}
-              placeholder="Enter your email address"
-              leftIcon={<Text style={styles.inputIcon}>✉</Text>}
+              placeholder="Email"
               keyboardType="email-address"
               autoCapitalize="none"
               error={emailError}
             />
+          </View>
 
-            <Text style={styles.label}>
-              Vehicle Number <Text style={styles.required}>*</Text>
-            </Text>
+          <View style={styles.fieldGap}>
             <CustomInput
-              value={vehicleNumber}
-              onChangeText={value => setVehicleNumber(value.toUpperCase())}
-              placeholder="MP04 AB 1234"
-              leftIcon={<Text style={styles.inputIcon}>🛵</Text>}
-              keyboardType="default"
-              autoCapitalize="characters"
-              error={vehicleError}
-            />
-
-            <Text style={styles.label}>Vehicle Model (Optional)</Text>
-            <CustomInput
-              value={vehicleModel}
-              onChangeText={setVehicleModel}
-              placeholder="Activa / Splendor / Car"
-              leftIcon={<Text style={styles.inputIcon}>🚗</Text>}
-              keyboardType="default"
-              autoCapitalize="words"
-            />
-
-            <Text style={styles.label}>Address (Optional)</Text>
-            <CustomInput
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Enter your address"
-              leftIcon={<Text style={styles.inputIcon}>⌖</Text>}
-              keyboardType="default"
-              autoCapitalize="words"
+              variant="subtle"
+              value={phone}
+              onChangeText={value => setPhone(value.replace(/\D/g, '').slice(0, 10))}
+              placeholder="Phone number"
+              prefix="+91"
+              keyboardType="number-pad"
+              maxLength={10}
+              error={phoneError}
             />
           </View>
 
+          <View style={styles.fieldGap}>
+            <CustomInput
+              variant="subtle"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              autoCapitalize="none"
+              secureTextEntry={!isPasswordVisible}
+              error={passwordError}
+              rightIcon={
+                <Pressable
+                  onPress={() => setIsPasswordVisible(current => !current)}
+                  hitSlop={8}>
+                  <Ionicons
+                    name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#9AA3AE"
+                  />
+                </Pressable>
+              }
+            />
+          </View>
+
+          <View style={styles.fieldGap}>
+            <CustomInput
+              variant="subtle"
+              value={address}
+              onChangeText={setAddress}
+              placeholder="Address"
+              autoCapitalize="words"
+              multiline
+              error={addressError}
+            />
+          </View>
+
+          <Text style={styles.genderLabel}>Gender</Text>
+          <View style={styles.genderRow}>
+            <Pressable
+              style={styles.genderOption}
+              onPress={() => setGender('male')}>
+              <View
+                style={[
+                  styles.radioOuter,
+                  gender === 'male' && styles.radioOuterSelected,
+                ]}>
+                {gender === 'male' ? <View style={styles.radioInner} /> : null}
+              </View>
+              <Text style={styles.genderText}>Male</Text>
+            </Pressable>
+            <Pressable
+              style={styles.genderOption}
+              onPress={() => setGender('female')}>
+              <View
+                style={[
+                  styles.radioOuter,
+                  gender === 'female' && styles.radioOuterSelected,
+                ]}>
+                {gender === 'female' ? <View style={styles.radioInner} /> : null}
+              </View>
+              <Text style={styles.genderText}>Female</Text>
+            </Pressable>
+          </View>
+
           <CustomButton
-            title="Save Profile"
-            onPress={onSaveProfile}
-            disabled={isSaveDisabled || isSaving}
+            title="Continue"
+            onPress={onContinue}
+            disabled={isContinueDisabled}
             loading={isSaving}
-            style={styles.saveButton}
+            style={styles.continueButton}
           />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -206,108 +337,96 @@ export function ProfileSetupScreen({navigation, route}: ProfileSetupScreenProps)
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
-  keyboardContainer: {
+  flex: {
     flex: 1,
-  },
-  backgroundCircleTop: {
-    position: 'absolute',
-    top: -170,
-    left: -140,
-    width: 380,
-    height: 380,
-    borderRadius: 190,
-    borderWidth: 1,
-    borderColor: '#D9EAF2',
-  },
-  backgroundCircleBottom: {
-    position: 'absolute',
-    bottom: -190,
-    right: -170,
-    width: 420,
-    height: 420,
-    borderRadius: 210,
-    backgroundColor: '#E8F2F8',
-    opacity: 0.7,
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 2,
-    paddingBottom: 18,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
   backButton: {
-    position: 'absolute',
-    top: 16,
-    left: 24,
-    zIndex: 2,
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F3F5',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: {
-    fontSize: 34,
-    lineHeight: 34,
-    color: COLORS.textPrimary,
-    fontFamily: FONTS.regular,
-  },
-  headerSection: {
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  logo: {
-    width: 230,
-    height: 230,
-  },
-  titleSection: {
-    marginTop: -44,
-    alignItems: 'center',
-  },
-  title: {
-    fontFamily: FONTS.bold,
-    fontSize: 24,
-    color: COLORS.primary,
-    letterSpacing: 0.3,
-  },
-  subtitle: {
-    marginTop: 6,
-    textAlign: 'center',
-    fontFamily: FONTS.regular,
-    fontSize: 16,
-    lineHeight: 22,
-    color: COLORS.textSecondary,
-    maxWidth: 320,
-  },
-  phoneHint: {
-    marginTop: 8,
-    fontFamily: FONTS.medium,
-    fontSize: 13,
-    color: COLORS.primary,
-  },
-  formSection: {
-    marginTop: 14,
-  },
-  label: {
-    marginBottom: 8,
-    marginTop: 10,
-    fontFamily: FONTS.medium,
-    fontSize: 16,
-    color: COLORS.textPrimary,
-  },
-  required: {
-    color: COLORS.error,
-    fontFamily: FONTS.semiBold,
-  },
-  inputIcon: {
-    fontFamily: FONTS.regular,
-    color: '#8D9CAB',
-    fontSize: 15,
-    lineHeight: 18,
-  },
-  saveButton: {
+  avatarButton: {
+    alignSelf: 'center',
     marginTop: 18,
-    borderRadius: 10,
+    marginBottom: 28,
+  },
+  avatarPlaceholder: {
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+    backgroundColor: '#E6E8EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarImage: {
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  nameField: {
+    flex: 1,
+  },
+  fieldGap: {
+    marginTop: 12,
+  },
+  genderLabel: {
+    marginTop: 18,
+    fontSize: 16,
+    fontFamily: FONTS.medium,
+    color: COLORS.textPrimary,
+  },
+  genderRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 28,
+  },
+  genderOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: '#1F2933',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  radioOuterSelected: {
+    borderColor: '#1F2933',
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#1F2933',
+  },
+  genderText: {
+    fontSize: 16,
+    fontFamily: FONTS.regular,
+    color: COLORS.textPrimary,
+  },
+  continueButton: {
+    marginTop: 28,
+    borderRadius: 999,
+    backgroundColor: '#8EB6C8',
   },
 });
