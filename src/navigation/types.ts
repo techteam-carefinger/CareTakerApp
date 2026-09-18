@@ -10,7 +10,11 @@ export type RootStackParamList = {
   RegistrationDocuments: {
     phoneNumber: string;
   };
+  BankDetails: {
+    phoneNumber: string;
+  };
   Home: undefined;
+  ActiveCareServices: undefined;
   Earnings: undefined;
   JobHistory: undefined;
   Profile: undefined;

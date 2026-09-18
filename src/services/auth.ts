@@ -5,8 +5,9 @@ import {
 } from '@react-native-firebase/auth';
 
 import {AUTH_CONFIG, PROVIDER_API_BASE_URL} from '../config/env';
-import {ApiUser, LoginData} from '../types';
+import {ApiUser, LoginData, ProviderDashboardStats} from '../types';
 import {api, UploadFile} from './api';
+import {jobService} from './job';
 import {storage} from './storage';
 
 type PendingConfirmation = Awaited<ReturnType<typeof signInWithPhoneNumber>>;
@@ -32,6 +33,43 @@ const toLocalPhone = (phone: string): string =>
 const isUserProfileComplete = (user: ApiUser): boolean =>
   Boolean(user.isProfileCompleted) ||
   Boolean(user.name && user.name.trim().length >= 3);
+
+const mergeDashboardIntoUser = (
+  user: ApiUser,
+  stats: ProviderDashboardStats,
+): ApiUser => {
+  const dashboardName = stats.name?.trim() || '';
+  const hasDashboardProfile = dashboardName.length >= 3;
+
+  return {
+    ...user,
+    name: dashboardName || user.name,
+    profilePicture: stats.profileImage || user.profilePicture,
+    isOnline: stats.isOnline,
+    providerType: stats.providerType ?? user.providerType,
+    todayEarnings: stats.todayEarnings,
+    totalEarnings: stats.totalEarnings,
+    totalJobs: stats.totalJobs,
+    totalMinutesServed: stats.totalMinutesServed,
+    isProfileCompleted: user.isProfileCompleted || hasDashboardProfile,
+  };
+};
+
+/**
+ * After login the backend creates a bare provider (phone only). Dashboard
+ * stats are the source of truth: an existing caretaker has a name; a new
+ * one does not and must complete Profile Setup.
+ */
+const enrichWithDashboard = async (user: ApiUser): Promise<ApiUser> => {
+  try {
+    const stats = await jobService.getDashboardStats();
+    const nextUser = mergeDashboardIntoUser(user, stats);
+    await storage.setUser(nextUser);
+    return nextUser;
+  } catch {
+    return user;
+  }
+};
 
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (value && typeof value === 'object') {
@@ -111,7 +149,7 @@ type ProviderAuthPayload = {
 const toLoginData = (payload: unknown): LoginData => {
   const record = asRecord(payload);
   const nested = asRecord(record.data);
-  const user = normalizeProvider(payload);
+  const user = normalizeProvider(record.provider ?? nested.provider ?? payload);
   const token = firstString(record.token, nested.token);
 
   if (!token) {
@@ -129,7 +167,8 @@ export type RestoredSession =
   | {route: 'Login'}
   | {route: 'Home'}
   | {route: 'ProfileSetup'; phoneNumber: string}
-  | {route: 'RegistrationDocuments'; phoneNumber: string};
+  | {route: 'RegistrationDocuments'; phoneNumber: string}
+  | {route: 'BankDetails'; phoneNumber: string};
 
 const sessionFromUser = async (user: ApiUser): Promise<RestoredSession> => {
   const local = await storage.getLocalProfile();
@@ -139,10 +178,15 @@ const sessionFromUser = async (user: ApiUser): Promise<RestoredSession> => {
     return {route: 'RegistrationDocuments', phoneNumber};
   }
 
+  if (local?.registrationStep === 3) {
+    return {route: 'BankDetails', phoneNumber};
+  }
+
   if (
     isUserProfileComplete(user) &&
     local?.registrationStep !== 1 &&
-    local?.registrationStep !== 2
+    local?.registrationStep !== 2 &&
+    local?.registrationStep !== 3
   ) {
     return {route: 'Home'};
   }
@@ -307,7 +351,20 @@ export const authService = {
     await storage.setUser(data.user);
     await storage.setKeepSignedIn(keepSignedIn !== false);
 
-    return data;
+    const user = await enrichWithDashboard(data.user);
+    return {
+      ...data,
+      user,
+      isProfileComplete: isUserProfileComplete(user),
+    };
+  },
+
+  async getSessionRoute(): Promise<RestoredSession> {
+    const user = await storage.getUser();
+    if (!user) {
+      return {route: 'Login'};
+    }
+    return sessionFromUser(user);
   },
 
   async updateProfile(fields: {
@@ -327,6 +384,10 @@ export const authService = {
     address?: string;
     city?: string;
     state?: string;
+    accountHolderName?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
     aadhaarFrontImage?: UploadFile;
     aadhaarBackImage?: UploadFile;
     licenseFrontImage?: UploadFile;
@@ -396,13 +457,14 @@ export const authService = {
     const cachedUser = await storage.getUser();
 
     try {
-      const user = await this.me();
+      const user = await enrichWithDashboard(await this.me());
       return await sessionFromUser(user);
     } catch {
       // Keep the saved session. Do not force OTP login again after a
       // profile refresh failure (network, 401 from a stale route, etc.).
       if (cachedUser) {
-        return await sessionFromUser(cachedUser);
+        const user = await enrichWithDashboard(cachedUser);
+        return await sessionFromUser(user);
       }
       return {route: 'Home'};
     }

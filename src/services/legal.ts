@@ -34,16 +34,7 @@ async function fetchLegal(path: string): Promise<LegalDocument> {
   return payload.data;
 }
 
-const loadWithFallback = async (primary: string, fallback: string) => {
-  try {
-    return await fetchLegal(primary);
-  } catch {
-    return fetchLegal(fallback);
-  }
-};
-
 export const legalService = {
-  getTakerTerms: () => loadWithFallback('/get_taker_terms', '/get_user_terms'),
-  getTakerPrivacy: () =>
-    loadWithFallback('/get_taker_privacy', '/get_user_privacy'),
+  getProviderTerms: () => fetchLegal('/get_provider_terms'),
+  getProviderPrivacy: () => fetchLegal('/get_provider_privacy'),
 };

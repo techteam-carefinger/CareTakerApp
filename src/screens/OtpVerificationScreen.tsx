@@ -46,15 +46,28 @@ export function OtpVerificationScreen({
 
   const completeLogin = useCallback(
     async (idToken: string) => {
-      const {isProfileComplete} = await authService.login(idToken, {
+      await authService.login(idToken, {
         keepSignedIn,
       });
 
+      const session = await authService.getSessionRoute();
+      const nextPhone =
+        session.route === 'ProfileSetup' ||
+        session.route === 'RegistrationDocuments' ||
+        session.route === 'BankDetails'
+          ? session.phoneNumber || phoneNumber
+          : phoneNumber;
+
       navigation.reset({
         index: 0,
-        routes: isProfileComplete
-          ? [{name: 'Home'}]
-          : [{name: 'ProfileSetup', params: {phoneNumber}}],
+        routes:
+          session.route === 'Home'
+            ? [{name: 'Home'}]
+            : session.route === 'RegistrationDocuments'
+              ? [{name: 'RegistrationDocuments', params: {phoneNumber: nextPhone}}]
+              : session.route === 'BankDetails'
+                ? [{name: 'BankDetails', params: {phoneNumber: nextPhone}}]
+                : [{name: 'ProfileSetup', params: {phoneNumber: nextPhone}}],
       });
     },
     [keepSignedIn, navigation, phoneNumber],

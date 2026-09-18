@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import {ApiUser, CapturedLocation, LocalProfile} from '../types';
+import {ApiUser, CapturedLocation, IncomingJob, LocalProfile} from '../types';
 
 const TOKEN_KEY = '@carefinger-taker/token';
 const USER_KEY = '@carefinger-taker/user';
@@ -8,6 +8,8 @@ const KEEP_SIGNED_IN_KEY = '@carefinger-taker/keepSignedIn';
 const LOCAL_PROFILE_KEY = '@carefinger-taker/localProfile';
 const LOCATION_KEY = '@carefinger-taker/location';
 const ONLINE_KEY = '@carefinger-taker/isOnline';
+const SERVICE_MODE_KEY = '@carefinger-taker/serviceMode';
+const CURRENT_JOB_KEY = '@carefinger-taker/currentJob';
 
 export const storage = {
   async setToken(token: string): Promise<void> {
@@ -87,6 +89,35 @@ export const storage = {
     return raw === 'true';
   },
 
+  async setServiceMode(mode: 'free' | 'paid'): Promise<void> {
+    await AsyncStorage.setItem(SERVICE_MODE_KEY, mode);
+  },
+
+  async getServiceMode(): Promise<'free' | 'paid'> {
+    const raw = await AsyncStorage.getItem(SERVICE_MODE_KEY);
+    return raw === 'free' ? 'free' : 'paid';
+  },
+
+  async setCurrentJob(job: IncomingJob): Promise<void> {
+    await AsyncStorage.setItem(CURRENT_JOB_KEY, JSON.stringify(job));
+  },
+
+  async getCurrentJob(): Promise<IncomingJob | null> {
+    const raw = await AsyncStorage.getItem(CURRENT_JOB_KEY);
+    if (!raw) {
+      return null;
+    }
+    try {
+      return JSON.parse(raw) as IncomingJob;
+    } catch {
+      return null;
+    }
+  },
+
+  async clearCurrentJob(): Promise<void> {
+    await AsyncStorage.removeItem(CURRENT_JOB_KEY);
+  },
+
   async clear(): Promise<void> {
     await Promise.all([
       AsyncStorage.removeItem(TOKEN_KEY),
@@ -95,6 +126,8 @@ export const storage = {
       AsyncStorage.removeItem(LOCAL_PROFILE_KEY),
       AsyncStorage.removeItem(LOCATION_KEY),
       AsyncStorage.removeItem(ONLINE_KEY),
+      AsyncStorage.removeItem(SERVICE_MODE_KEY),
+      AsyncStorage.removeItem(CURRENT_JOB_KEY),
     ]);
   },
 };

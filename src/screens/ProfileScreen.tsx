@@ -27,7 +27,7 @@ type MenuItem = {
 };
 
 const MENU_ITEMS: MenuItem[] = [
-  {id: 'jobs', icon: 'time-outline', label: 'My Jobs'},
+  {id: 'jobs', icon: 'time-outline', label: 'My Care Services'},
   {id: 'earnings', icon: 'wallet-outline', label: 'Earnings'},
   {id: 'help', icon: 'help-circle-outline', label: 'Help'},
 ];
@@ -167,7 +167,7 @@ export function ProfileScreen() {
           </Text>
           {renderMenuCard(OTHER_MENU_ITEMS)}
         </ScrollView>
-        <TakerTabBar active="Profile" />
+        <TakerTabBar active="Settings" />
       </View>
     </SafeAreaView>
   );

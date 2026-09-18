@@ -14,6 +14,7 @@ export interface ApiUser {
   vehicleModel?: string | null;
   rating?: number;
   isOnline?: boolean;
+  providerType?: 'free' | 'paid';
   isProfileCompleted?: boolean;
   totalEarnings?: number;
   todayEarnings?: number;
@@ -54,7 +55,11 @@ export interface LocalProfile {
   gender?: 'male' | 'female';
   shift?: string;
   serviceType?: string;
-  registrationStep?: 1 | 2 | 'done';
+  accountHolderName?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  registrationStep?: 1 | 2 | 3 | 'done';
 }
 
 export interface CapturedLocation {
@@ -86,7 +91,9 @@ export interface IncomingJob {
   otp?: number;
   customerName?: string;
   customerPhone?: string;
+  customerImage?: string;
   customerRating?: number;
+  customerRatingCount?: number;
   address?: string;
   lat?: number;
   lng?: number;
@@ -98,6 +105,7 @@ export interface IncomingJob {
   remainingMinutes?: number;
   ratePerMinute?: number;
   isFree?: boolean;
+  scheduledAt?: string;
 }
 
 export interface CurrentJob extends IncomingJob {
@@ -134,4 +142,23 @@ export interface EarningsData {
   total: number;
   jobsToday: number;
   minutesToday: number;
+}
+
+export interface ProviderDashboardStats {
+  totalBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  pendingBookings: number;
+  todayEarnings: number;
+  weekEarnings: number;
+  monthEarnings: number;
+  totalEarnings: number;
+  jobsToday: number;
+  minutesToday: number;
+  totalMinutesServed: number;
+  totalJobs: number;
+  isOnline: boolean;
+  name?: string;
+  providerType?: 'free' | 'paid';
+  profileImage?: string;
 }

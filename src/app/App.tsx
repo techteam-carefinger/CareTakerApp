@@ -8,7 +8,9 @@ import {LoginScreen} from '../screens/LoginScreen';
 import {OtpVerificationScreen} from '../screens/OtpVerificationScreen';
 import {ProfileSetupScreen} from '../screens/ProfileSetupScreen';
 import {RegistrationDocumentsScreen} from '../screens/RegistrationDocumentsScreen';
+import {BankDetailsScreen} from '../screens/BankDetailsScreen';
 import {HomeScreen} from '../screens/HomeScreen';
+import {ActiveCareServicesScreen} from '../screens/ActiveCareServicesScreen';
 import {EarningsScreen} from '../screens/EarningsScreen';
 import {JobHistoryScreen} from '../screens/JobHistoryScreen';
 import {ProfileScreen} from '../screens/ProfileScreen';
@@ -70,7 +72,8 @@ function App() {
             initialParams={{
               phoneNumber:
                 session.route === 'ProfileSetup' ||
-                session.route === 'RegistrationDocuments'
+                session.route === 'RegistrationDocuments' ||
+                session.route === 'BankDetails'
                   ? session.phoneNumber
                   : '',
             }}
@@ -85,7 +88,19 @@ function App() {
                   : '',
             }}
           />
+          <Stack.Screen
+            name="BankDetails"
+            component={BankDetailsScreen}
+            initialParams={{
+              phoneNumber:
+                session.route === 'BankDetails' ? session.phoneNumber : '',
+            }}
+          />
           <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen
+            name="ActiveCareServices"
+            component={ActiveCareServicesScreen}
+          />
           <Stack.Screen name="Earnings" component={EarningsScreen} />
           <Stack.Screen name="JobHistory" component={JobHistoryScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />

@@ -1,4 +1,5 @@
-import {CurrentJob, EarningsData, IncomingJob, JobHistoryData} from '../types';
+import {CurrentJob, EarningsData, IncomingJob, JobHistoryData, ProviderDashboardStats} from '../types';
+import {PROVIDER_API_BASE_URL} from '../config/env';
 import {api} from './api';
 
 const asRecord = (value: unknown): Record<string, unknown> => {
@@ -72,7 +73,17 @@ const normalizeJob = (payload: unknown): IncomingJob | null => {
       source.phoneNumber,
       source.userPhone,
     ),
+    customerImage: firstString(
+      source.customerImage,
+      source.profilePicture,
+      source.profileImage,
+    ),
     customerRating: firstNumber(source.customerRating, source.rating),
+    customerRatingCount: firstNumber(
+      source.customerRatingCount,
+      source.totalRatings,
+      source.ratingCount,
+    ),
     address: firstString(
       source.address,
       pickup.address,
@@ -93,6 +104,7 @@ const normalizeJob = (payload: unknown): IncomingJob | null => {
     remainingMinutes: firstNumber(source.remainingMinutes),
     ratePerMinute: firstNumber(source.ratePerMinute, source.pricePerMinute),
     isFree: source.isFree === true || source.freeService === true,
+    scheduledAt: firstString(source.scheduledAt, source.createdAt, source.bookingDate),
   };
 };
 
@@ -122,15 +134,27 @@ const normalizeHistory = (payload: unknown): JobHistoryData => {
   return {jobs, total};
 };
 
-const normalizeEarnings = (payload: unknown): EarningsData => {
+const normalizeDashboard = (payload: unknown): ProviderDashboardStats => {
   const record = asRecord(payload);
   return {
-    today: firstNumber(record.today, record.todayEarnings, record.daily) ?? 0,
-    week: firstNumber(record.week, record.weekEarnings, record.weekly) ?? 0,
-    month: firstNumber(record.month, record.monthEarnings, record.monthly) ?? 0,
-    total: firstNumber(record.total, record.totalEarnings) ?? 0,
-    jobsToday: firstNumber(record.jobsToday, record.todayJobs) ?? 0,
-    minutesToday: firstNumber(record.minutesToday, record.todayMinutes) ?? 0,
+    totalBookings: firstNumber(record.totalBookings) ?? 0,
+    completedBookings: firstNumber(record.completedBookings) ?? 0,
+    cancelledBookings: firstNumber(record.cancelledBookings) ?? 0,
+    pendingBookings: firstNumber(record.pendingBookings) ?? 0,
+    todayEarnings:
+      firstNumber(record.todayEarnings, record.today) ?? 0,
+    weekEarnings: firstNumber(record.weekEarnings, record.week) ?? 0,
+    monthEarnings: firstNumber(record.monthEarnings, record.month) ?? 0,
+    totalEarnings: firstNumber(record.totalEarnings, record.total) ?? 0,
+    jobsToday: firstNumber(record.jobsToday) ?? 0,
+    minutesToday: firstNumber(record.minutesToday) ?? 0,
+    totalMinutesServed: firstNumber(record.totalMinutesServed) ?? 0,
+    totalJobs: firstNumber(record.totalJobs, record.completedBookings) ?? 0,
+    isOnline: record.isOnline === true,
+    name: firstString(record.name),
+    providerType:
+      firstString(record.providerType) === 'free' ? 'free' : 'paid',
+    profileImage: firstString(record.profileImage, record.profilePicture),
   };
 };
 
@@ -139,6 +163,7 @@ export const jobService = {
     await api.post('/update-location', {
       auth: true,
       body: {lat, lng},
+      baseUrl: PROVIDER_API_BASE_URL,
     });
   },
 
@@ -150,16 +175,31 @@ export const jobService = {
         lat,
         lng,
       },
+      baseUrl: PROVIDER_API_BASE_URL,
+    });
+  },
+
+  async setServiceMode(providerType: 'free' | 'paid'): Promise<void> {
+    await api.post('/service-mode', {
+      auth: true,
+      body: {providerType},
+      baseUrl: PROVIDER_API_BASE_URL,
     });
   },
 
   async getPendingRequest(): Promise<IncomingJob | null> {
-    const data = await api.post<unknown>('/pending-request', {auth: true});
+    const data = await api.post<unknown>('/pending-request', {
+      auth: true,
+      baseUrl: PROVIDER_API_BASE_URL,
+    });
     return normalizeJob(data);
   },
 
   async getCurrentJob(): Promise<CurrentJob | null> {
-    const data = await api.post<unknown>('/current-job', {auth: true});
+    const data = await api.post<unknown>('/current-job', {
+      auth: true,
+      baseUrl: PROVIDER_API_BASE_URL,
+    });
     return normalizeJob(data);
   },
 
@@ -167,6 +207,7 @@ export const jobService = {
     const data = await api.post<unknown>('/accept-booking', {
       auth: true,
       body: {bookingId},
+      baseUrl: PROVIDER_API_BASE_URL,
     });
     return normalizeJob(data);
   },
@@ -175,6 +216,7 @@ export const jobService = {
     await api.post('/reject-booking', {
       auth: true,
       body: {bookingId, reason},
+      baseUrl: PROVIDER_API_BASE_URL,
     });
   },
 
@@ -202,13 +244,28 @@ export const jobService = {
     return normalizeJob(data);
   },
 
+  async getDashboardStats(): Promise<ProviderDashboardStats> {
+    const data = await api.post<unknown>('/dashboard-stats', {
+      auth: true,
+      baseUrl: PROVIDER_API_BASE_URL,
+    });
+    return normalizeDashboard(data);
+  },
+
   async getJobHistory(): Promise<JobHistoryData> {
     const data = await api.post<unknown>('/job-history', {auth: true});
     return normalizeHistory(data);
   },
 
   async getEarnings(): Promise<EarningsData> {
-    const data = await api.post<unknown>('/earnings', {auth: true});
-    return normalizeEarnings(data);
+    const stats = await this.getDashboardStats();
+    return {
+      today: stats.todayEarnings,
+      week: stats.weekEarnings,
+      month: stats.monthEarnings,
+      total: stats.totalEarnings,
+      jobsToday: stats.jobsToday,
+      minutesToday: stats.minutesToday,
+    };
   },
 };

@@ -3,22 +3,51 @@ import {StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
+import {COLORS} from '../../constants';
 import {RootStackParamList} from '../../navigation/types';
 import {BottomTab, TakerTabIcon} from './BottomTab';
+
+export type TakerTabKey = 'Home' | 'Active' | 'Jobs' | 'Settings';
 
 const TABS: Array<{
   icon: TakerTabIcon;
   label: string;
-  route: 'Home' | 'Earnings' | 'JobHistory' | 'Profile';
+  key: TakerTabKey;
+  route: keyof RootStackParamList;
+  activeColor: string;
 }> = [
-  {icon: 'home-outline', label: 'Home', route: 'Home'},
-  {icon: 'wallet-outline', label: 'Earnings', route: 'Earnings'},
-  {icon: 'time-outline', label: 'Jobs', route: 'JobHistory'},
-  {icon: 'person-outline', label: 'Profile', route: 'Profile'},
+  {
+    icon: 'home-outline',
+    label: 'Home',
+    key: 'Home',
+    route: 'Home',
+    activeColor: '#22C55E',
+  },
+  {
+    icon: 'car-outline',
+    label: 'Active Care Services',
+    key: 'Active',
+    route: 'ActiveCareServices',
+    activeColor: COLORS.primary,
+  },
+  {
+    icon: 'car-sport-outline',
+    label: 'My Care Services',
+    key: 'Jobs',
+    route: 'JobHistory',
+    activeColor: COLORS.primary,
+  },
+  {
+    icon: 'settings-outline',
+    label: 'Setting',
+    key: 'Settings',
+    route: 'Profile',
+    activeColor: COLORS.primary,
+  },
 ];
 
 type Props = {
-  active: 'Home' | 'Earnings' | 'Jobs' | 'Profile';
+  active?: TakerTabKey;
 };
 
 export function TakerTabBar({active}: Props) {
@@ -29,11 +58,12 @@ export function TakerTabBar({active}: Props) {
     <View style={styles.bottomBar}>
       {TABS.map(tab => (
         <BottomTab
-          key={tab.label}
+          key={tab.key}
           icon={tab.icon}
           label={tab.label}
-          active={tab.label === active}
-          onPress={() => navigation.navigate(tab.route)}
+          active={tab.key === active}
+          activeColor={tab.activeColor}
+          onPress={() => navigation.navigate(tab.route as never)}
         />
       ))}
     </View>
@@ -55,6 +85,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
+    paddingHorizontal: 4,
     shadowColor: '#111827',
     shadowOpacity: 0.06,
     shadowRadius: 10,

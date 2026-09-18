@@ -23,13 +23,13 @@ type LegalScreenProps = NativeStackScreenProps<
 const DOC_CONFIG = {
   PrivacyPolicy: {
     title: 'Privacy Policy',
-    fetch: legalService.getTakerPrivacy,
+    fetch: legalService.getProviderPrivacy,
     fallback: 'Could not load Privacy Policy. Please try again.',
     empty: 'Privacy Policy is not available right now.',
   },
   TermsAndConditions: {
     title: 'Terms & Conditions',
-    fetch: legalService.getTakerTerms,
+    fetch: legalService.getProviderTerms,
     fallback: 'Could not load Terms & Conditions. Please try again.',
     empty: 'Terms & Conditions are not available right now.',
   },
@@ -59,7 +59,7 @@ const decodeEntities = (value: string): string =>
 /**
  * Converts admin-authored HTML into a flat list of text blocks. This keeps the
  * screen dependency-free while still preserving headings, paragraphs and
- * bullet lists, which covers the content served by `get_user_terms`.
+ * bullet lists, which covers the content served by `get_provider_terms`.
  */
 const parseHtml = (html: string): Block[] => {
   const normalized = html

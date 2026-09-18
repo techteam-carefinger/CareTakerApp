@@ -119,7 +119,7 @@ export function JobHistoryScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.screen}>
         <Text style={styles.title} allowFontScaling={false}>
-          My Jobs
+          My Care Services
         </Text>
         {isLoading ? (
           <View style={styles.center}>

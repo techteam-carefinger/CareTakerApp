@@ -91,7 +91,7 @@ export function EarningsScreen() {
             ) : null}
           </>
         )}
-        <TakerTabBar active="Earnings" />
+        <TakerTabBar />
       </View>
     </SafeAreaView>
   );

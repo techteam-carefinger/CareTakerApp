@@ -101,12 +101,9 @@ export function RegistrationDocumentsScreen({
       const existing = await storage.getLocalProfile();
       await storage.setLocalProfile({
         ...existing,
-        registrationStep: 'done',
+        registrationStep: 3,
       });
-      navigation.reset({
-        index: 0,
-        routes: [{name: 'Home'}],
-      });
+      navigation.navigate('BankDetails', {phoneNumber});
     } catch (error) {
       const message =
         error instanceof Error
