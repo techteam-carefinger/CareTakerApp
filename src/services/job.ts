@@ -167,24 +167,22 @@ export const jobService = {
     });
   },
 
-  async setOnlineStatus(isOnline: boolean, lat?: number, lng?: number): Promise<void> {
-    await api.post('/toggle-status', {
+  async setOnlineStatus(isOnline: boolean): Promise<void> {
+    await api.post('/toggle-online', {
       auth: true,
-      body: {
-        isOnline,
-        lat,
-        lng,
-      },
+      body: {isOnline},
       baseUrl: PROVIDER_API_BASE_URL,
     });
   },
 
-  async setServiceMode(providerType: 'free' | 'paid'): Promise<void> {
-    await api.post('/service-mode', {
+  async setServiceMode(providerType: 'free' | 'paid'): Promise<'free' | 'paid'> {
+    const data = await api.post<unknown>('/service-mode', {
       auth: true,
       body: {providerType},
       baseUrl: PROVIDER_API_BASE_URL,
     });
+    const record = asRecord(data);
+    return firstString(record.providerType) === 'paid' ? 'paid' : 'free';
   },
 
   async getPendingRequest(): Promise<IncomingJob | null> {

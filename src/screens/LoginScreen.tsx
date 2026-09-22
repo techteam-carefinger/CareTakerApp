@@ -25,11 +25,10 @@ export function LoginScreen({navigation}: LoginScreenProps) {
   const [phone, setPhone] = useState('');
   const [isSending, setIsSending] = useState(false);
 
-  const isValidPhone = phone.length === 10;
   const showError = phone.length > 0 && phone.length < 10;
   const errorText = showError ? 'Enter valid 10-digit mobile number' : undefined;
 
-  const isLoginDisabled = !isValidPhone || isSending;
+  const isLoginDisabled = isSending;
 
   const onChangePhone = (text: string) => {
     const numericOnly = text.replace(/\D/g, '').slice(0, 10);
@@ -37,23 +36,24 @@ export function LoginScreen({navigation}: LoginScreenProps) {
   };
 
   const onLogin = async () => {
-    if (!isValidPhone || isSending) {
+    if (isSending) {
       return;
     }
 
     setIsSending(true);
     try {
-      await authService.sendOtp(phone);
-      navigation.navigate('OtpVerification', {
-        phoneNumber: phone,
-        keepSignedIn: true,
+      // Temporary: skip Firebase OTP until SMS billing is enabled.
+      await authService.skipOtpLogin(phone);
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'Home'}],
       });
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : 'Could not send OTP. Please try again.';
-      Alert.alert('OTP failed', message);
+          : 'Could not open the dashboard. Please try again.';
+      Alert.alert('Login failed', message);
     } finally {
       setIsSending(false);
     }

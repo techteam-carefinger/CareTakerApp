@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
+  ActivityIndicator,
   Alert,
   PermissionsAndroid,
   Platform,
@@ -61,6 +62,7 @@ export function HomeScreen() {
   const [isOnline, setIsOnline] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [serviceMode, setServiceMode] = useState<ServiceMode>('free');
+  const [isUpdatingMode, setIsUpdatingMode] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
   const [address, setAddress] = useState('');
   const [hasLocationPermission, setHasLocationPermission] = useState(
@@ -317,15 +319,15 @@ export function HomeScreen() {
     const next = !isOnline;
     setIsToggling(true);
     try {
-      const current = lastUserCoordsRef.current ?? coords;
-      await jobService.setOnlineStatus(
-        next,
-        current?.latitude,
-        current?.longitude,
-      );
+      await jobService.setOnlineStatus(next);
       setIsOnline(next);
       isOnlineRef.current = next;
       await storage.setOnline(next);
+      if (user) {
+        const nextUser = {...user, isOnline: next};
+        setUser(nextUser);
+        await storage.setUser(nextUser);
+      }
       if (!next) {
         setIncomingJob(null);
       }
@@ -341,27 +343,32 @@ export function HomeScreen() {
   };
 
   const changeServiceMode = async (next: ServiceMode) => {
-    if (next === serviceMode) {
+    if (next === serviceMode || isUpdatingMode) {
       return;
     }
+
     const previous = serviceMode;
+    setIsUpdatingMode(true);
     setServiceMode(next);
-    await storage.setServiceMode(next);
+
     try {
-      await jobService.setServiceMode(next);
+      const confirmed = await jobService.setServiceMode(next);
+      setServiceMode(confirmed);
+      await storage.setServiceMode(confirmed);
       if (user) {
-        const nextUser = {...user, providerType: next};
+        const nextUser = {...user, providerType: confirmed};
         setUser(nextUser);
         await storage.setUser(nextUser);
       }
     } catch (error) {
       setServiceMode(previous);
-      await storage.setServiceMode(previous);
       const message =
         error instanceof ApiError
           ? error.message
           : 'Could not update service mode.';
       Alert.alert('Mode update failed', message);
+    } finally {
+      setIsUpdatingMode(false);
     }
   };
 
@@ -496,12 +503,20 @@ export function HomeScreen() {
                     styles.modeButton,
                     serviceMode === 'free' && styles.modeButtonActive,
                   ]}
+                  disabled={isUpdatingMode}
                   onPress={() => void changeServiceMode('free')}>
-                  <Ionicons
-                    name="heart-outline"
-                    size={16}
-                    color={serviceMode === 'free' ? '#FFFFFF' : THEME}
-                  />
+                  {isUpdatingMode && serviceMode === 'free' ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={serviceMode === 'free' ? '#FFFFFF' : THEME}
+                    />
+                  ) : (
+                    <Ionicons
+                      name="heart-outline"
+                      size={16}
+                      color={serviceMode === 'free' ? '#FFFFFF' : THEME}
+                    />
+                  )}
                   <Text
                     style={[
                       styles.modeText,
@@ -516,12 +531,20 @@ export function HomeScreen() {
                     styles.modeButton,
                     serviceMode === 'paid' && styles.modeButtonActive,
                   ]}
+                  disabled={isUpdatingMode}
                   onPress={() => void changeServiceMode('paid')}>
-                  <Ionicons
-                    name="cash-outline"
-                    size={16}
-                    color={serviceMode === 'paid' ? '#FFFFFF' : THEME}
-                  />
+                  {isUpdatingMode && serviceMode === 'paid' ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={serviceMode === 'paid' ? '#FFFFFF' : THEME}
+                    />
+                  ) : (
+                    <Ionicons
+                      name="cash-outline"
+                      size={16}
+                      color={serviceMode === 'paid' ? '#FFFFFF' : THEME}
+                    />
+                  )}
                   <Text
                     style={[
                       styles.modeText,

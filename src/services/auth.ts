@@ -222,20 +222,60 @@ const firebaseAuthMessage = (error: unknown, fallback: string): Error => {
       'Phone verification failed. Please try again.',
     'auth/invalid-app-credential':
       'Firebase Phone Auth is not set up for this app. Check SHA-1 fingerprints.',
+    'auth/billing-not-enabled':
+      'Firebase SMS billing is not enabled. Upgrade project carefinger-920b8 to the Blaze plan, then retry OTP.',
   };
 
   if (messages[code]) {
     return new Error(messages[code]);
   }
 
-  if (error instanceof Error && error.message) {
-    return new Error(error.message);
+  const rawMessage = error instanceof Error ? error.message : '';
+  if (
+    rawMessage.includes('BILLING_NOT_ENABLED') ||
+    rawMessage.includes('billing-not-enabled')
+  ) {
+    return new Error(messages['auth/billing-not-enabled']);
+  }
+
+  if (rawMessage) {
+    return new Error(rawMessage);
   }
 
   return new Error(fallback);
 };
 
 export const authService = {
+  /**
+   * Temporary bypass while Firebase SMS billing is off.
+   * Stores a local session and opens the dashboard without OTP.
+   */
+  async skipOtpLogin(phone?: string): Promise<void> {
+    awaitingAutoVerification = false;
+    pendingConfirmation = null;
+
+    const digits = toLocalPhone(phone || '') || '0000000000';
+    const user: ApiUser = {
+      user_id: `skip-${digits}`,
+      providerId: `skip-${digits}`,
+      takerId: `skip-${digits}`,
+      name: 'Caretaker',
+      phoneNumber: `${AUTH_CONFIG.defaultCountryCode}${digits}`,
+      email: null,
+      profilePicture: null,
+      isOnline: false,
+      isProfileCompleted: true,
+      providerType: 'free',
+      lat: null,
+      lng: null,
+    };
+
+    await storage.setToken('skip-otp-local');
+    await storage.setUser(user);
+    await storage.setKeepSignedIn(true);
+    await storage.setLocalProfile({registrationStep: 'done'});
+  },
+
   /**
    * Triggers Firebase Phone Auth, sending an SMS OTP to the given number.
    * The backend never receives this code — it only verifies the Firebase ID token.
