@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -15,6 +15,7 @@ const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
 export function ServiceCompleteScreen({navigation, route}: Props) {
   const {
+    bookingId,
     minutes,
     ratePerMinute = DEFAULT_RATE,
     earnings,
@@ -59,6 +60,13 @@ export function ServiceCompleteScreen({navigation, route}: Props) {
       </View>
 
       <View style={styles.footer}>
+        <Pressable
+          style={styles.complaintLink}
+          onPress={() => navigation.navigate('RaiseComplaint', {bookingId})}>
+          <Text style={styles.complaintLinkText} allowFontScaling={false}>
+            Raise Complaint
+          </Text>
+        </Pressable>
         <CustomButton title="Back to Home" onPress={() => navigation.replace('Home')} />
       </View>
     </SafeAreaView>
@@ -133,5 +141,15 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 24,
     paddingBottom: 16,
+    gap: 12,
+  },
+  complaintLink: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  complaintLinkText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 16,
+    color: COLORS.primary,
   },
 });

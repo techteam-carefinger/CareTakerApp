@@ -144,6 +144,28 @@ export interface EarningsData {
   minutesToday: number;
 }
 
+export type ComplaintCategory =
+  | 'payment'
+  | 'booking'
+  | 'app'
+  | 'account'
+  | 'other';
+
+export type ComplaintStatus = 'open' | 'in_progress' | 'resolved' | 'rejected';
+
+export interface Complaint {
+  complaintId: string;
+  subject: string;
+  description: string;
+  category: ComplaintCategory;
+  status: ComplaintStatus;
+  bookingId: string | null;
+  adminNote: string;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProviderDashboardStats {
   totalBookings: number;
   completedBookings: number;

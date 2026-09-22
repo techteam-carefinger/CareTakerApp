@@ -14,6 +14,9 @@ import {ActiveCareServicesScreen} from '../screens/ActiveCareServicesScreen';
 import {EarningsScreen} from '../screens/EarningsScreen';
 import {JobHistoryScreen} from '../screens/JobHistoryScreen';
 import {ProfileScreen} from '../screens/ProfileScreen';
+import {ComplaintsScreen} from '../screens/ComplaintsScreen';
+import {RaiseComplaintScreen} from '../screens/RaiseComplaintScreen';
+import {ComplaintDetailScreen} from '../screens/ComplaintDetailScreen';
 import {ProfileDetailsScreen} from '../screens/ProfileDetailsScreen';
 import {EditProfileFieldScreen} from '../screens/EditProfileFieldScreen';
 import {ActiveJobScreen} from '../screens/ActiveJobScreen';
@@ -104,6 +107,9 @@ function App() {
           <Stack.Screen name="Earnings" component={EarningsScreen} />
           <Stack.Screen name="JobHistory" component={JobHistoryScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="Complaints" component={ComplaintsScreen} />
+          <Stack.Screen name="RaiseComplaint" component={RaiseComplaintScreen} />
+          <Stack.Screen name="ComplaintDetail" component={ComplaintDetailScreen} />
           <Stack.Screen name="ProfileDetails" component={ProfileDetailsScreen} />
           <Stack.Screen name="EditProfileField" component={EditProfileFieldScreen} />
           <Stack.Screen name="ActiveJob" component={ActiveJobScreen} />

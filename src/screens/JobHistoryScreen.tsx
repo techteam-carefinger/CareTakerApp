@@ -8,11 +8,13 @@ import {
   View,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import {useFocusEffect} from '@react-navigation/native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {TakerTabBar} from '../components/home/TakerTabBar';
 import {COLORS, FONTS} from '../constants';
+import {RootStackParamList} from '../navigation/types';
 import {ApiError, jobService} from '../services';
 import {JobHistoryItem} from '../types';
 
@@ -65,6 +67,8 @@ const formatStatus = (status?: string) => {
 };
 
 export function JobHistoryScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [jobs, setJobs] = useState<JobHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -96,7 +100,7 @@ export function JobHistoryScreen() {
   const renderItem = ({item}: {item: JobHistoryItem}) => {
     const amount = getAmount(item);
     return (
-      <Pressable style={styles.historyRow}>
+      <View style={styles.historyRow}>
         <View style={styles.historyIconWrap}>
           <Ionicons name="medkit-outline" size={22} color="#111827" />
         </View>
@@ -110,8 +114,19 @@ export function JobHistoryScreen() {
           <Text style={styles.historyMeta} allowFontScaling={false}>
             ₹{amount.toFixed(1)} • {formatStatus(item.status)}
           </Text>
+          {getJobId(item) ? (
+            <Pressable
+              onPress={() =>
+                navigation.navigate('RaiseComplaint', {bookingId: getJobId(item)})
+              }
+              hitSlop={8}>
+              <Text style={styles.complaintLink} allowFontScaling={false}>
+                Raise Complaint
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
-      </Pressable>
+      </View>
     );
   };
 
@@ -207,5 +222,11 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     fontSize: 13,
     color: '#6B7280',
+  },
+  complaintLink: {
+    marginTop: 6,
+    fontFamily: FONTS.semiBold,
+    fontSize: 13,
+    color: COLORS.primary,
   },
 });

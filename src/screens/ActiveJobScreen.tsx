@@ -217,6 +217,13 @@ export function ActiveJobScreen({navigation, route}: Props) {
             <Text style={styles.iconLabel}>Navigate</Text>
           </Pressable>
         </View>
+        <Pressable
+          style={styles.complaintLink}
+          onPress={() => navigation.navigate('RaiseComplaint', {bookingId})}>
+          <Text style={styles.complaintLinkText} allowFontScaling={false}>
+            Raise Complaint
+          </Text>
+        </Pressable>
 
         {phase === 'arrived' ? (
           <View style={styles.otpWrap}>
@@ -313,9 +320,18 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     marginTop: 16,
-    marginBottom: 18,
     flexDirection: 'row',
     gap: 10,
+  },
+  complaintLink: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    marginBottom: 18,
+  },
+  complaintLinkText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 14,
+    color: THEME,
   },
   iconButton: {
     flexDirection: 'row',

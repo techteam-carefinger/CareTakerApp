@@ -29,6 +29,8 @@ type MenuItem = {
 const MENU_ITEMS: MenuItem[] = [
   {id: 'jobs', icon: 'time-outline', label: 'My Care Services'},
   {id: 'earnings', icon: 'wallet-outline', label: 'Earnings'},
+  {id: 'complaints', icon: 'chatbox-ellipses-outline', label: 'My Complaints'},
+  {id: 'raiseComplaint', icon: 'create-outline', label: 'Raise Complaint'},
   {id: 'help', icon: 'help-circle-outline', label: 'Help'},
 ];
 
@@ -68,6 +70,14 @@ export function ProfileScreen() {
     }
     if (itemId === 'earnings') {
       navigation.navigate('Earnings');
+      return;
+    }
+    if (itemId === 'complaints') {
+      navigation.navigate('Complaints');
+      return;
+    }
+    if (itemId === 'raiseComplaint') {
+      navigation.navigate('RaiseComplaint');
       return;
     }
     if (itemId === 'about') {

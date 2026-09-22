@@ -1,3 +1,5 @@
+import {Complaint} from '../types';
+
 export type RootStackParamList = {
   Login: undefined;
   OtpVerification: {
@@ -51,4 +53,10 @@ export type RootStackParamList = {
   };
   TermsAndConditions: undefined;
   PrivacyPolicy: undefined;
+  Complaints: undefined;
+  RaiseComplaint: {bookingId?: string} | undefined;
+  ComplaintDetail: {
+    complaintId: string;
+    initialComplaint?: Complaint;
+  };
 };
