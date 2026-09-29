@@ -247,36 +247,6 @@ const firebaseAuthMessage = (error: unknown, fallback: string): Error => {
 
 export const authService = {
   /**
-   * Temporary bypass while Firebase SMS billing is off.
-   * Stores a local session and opens the dashboard without OTP.
-   */
-  async skipOtpLogin(phone?: string): Promise<void> {
-    awaitingAutoVerification = false;
-    pendingConfirmation = null;
-
-    const digits = toLocalPhone(phone || '') || '0000000000';
-    const user: ApiUser = {
-      user_id: `skip-${digits}`,
-      providerId: `skip-${digits}`,
-      takerId: `skip-${digits}`,
-      name: 'Caretaker',
-      phoneNumber: `${AUTH_CONFIG.defaultCountryCode}${digits}`,
-      email: null,
-      profilePicture: null,
-      isOnline: false,
-      isProfileCompleted: true,
-      providerType: 'free',
-      lat: null,
-      lng: null,
-    };
-
-    await storage.setToken('skip-otp-local');
-    await storage.setUser(user);
-    await storage.setKeepSignedIn(true);
-    await storage.setLocalProfile({registrationStep: 'done'});
-  },
-
-  /**
    * Triggers Firebase Phone Auth, sending an SMS OTP to the given number.
    * The backend never receives this code — it only verifies the Firebase ID token.
    */
@@ -484,7 +454,10 @@ export const authService = {
 
   async restoreSession(): Promise<RestoredSession> {
     const token = await storage.getToken();
-    if (!token) {
+    if (!token || token === 'skip-otp-local') {
+      if (token === 'skip-otp-local') {
+        await this.logout();
+      }
       return {route: 'Login'};
     }
 
