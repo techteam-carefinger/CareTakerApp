@@ -47,8 +47,6 @@ export function ProfileSetupScreen({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState(phoneNumber.replace(/\D/g, '').slice(-10));
-  const [password, setPassword] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [address, setAddress] = useState('');
   const [gender, setGender] = useState<Gender>('male');
   const [isSaving, setIsSaving] = useState(false);
@@ -112,12 +110,6 @@ export function ProfileSetupScreen({
       : phone.length !== 10
         ? 'Enter a valid 10-digit mobile number'
         : undefined;
-  const passwordError =
-    password.length === 0
-      ? undefined
-      : password.length < 6
-        ? 'Password must be at least 6 characters'
-        : undefined;
   const addressError =
     address.length === 0
       ? undefined
@@ -129,7 +121,6 @@ export function ProfileSetupScreen({
     trimmedFirstName.length < 2 ||
     trimmedLastName.length < 2 ||
     phone.length !== 10 ||
-    password.length < 6 ||
     trimmedAddress.length < 6 ||
     (trimmedEmail.length > 0 && !isValidEmail(trimmedEmail)) ||
     isSaving;
@@ -255,29 +246,6 @@ export function ProfileSetupScreen({
               keyboardType="number-pad"
               maxLength={10}
               error={phoneError}
-            />
-          </View>
-
-          <View style={styles.fieldGap}>
-            <CustomInput
-              variant="subtle"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Password"
-              autoCapitalize="none"
-              secureTextEntry={!isPasswordVisible}
-              error={passwordError}
-              rightIcon={
-                <Pressable
-                  onPress={() => setIsPasswordVisible(current => !current)}
-                  hitSlop={8}>
-                  <Ionicons
-                    name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color="#9AA3AE"
-                  />
-                </Pressable>
-              }
             />
           </View>
 
