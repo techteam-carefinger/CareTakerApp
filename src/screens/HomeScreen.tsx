@@ -21,7 +21,7 @@ import {TakerTabBar} from '../components/home/TakerTabBar';
 import {COLORS, FONTS} from '../constants';
 import {GOOGLE_MAPS_API_KEY} from '../config/env';
 import {RootStackParamList} from '../navigation/types';
-import {ApiError, jobService, storage} from '../services';
+import {ApiError, authService, jobService, storage} from '../services';
 import {ApiUser, CapturedLocation, IncomingJob} from '../types';
 
 type Coords = {
@@ -94,20 +94,28 @@ export function HomeScreen() {
         setServiceMode(storedUser?.providerType ?? storedMode);
 
         try {
-          const stats = await jobService.getDashboardStats();
+          const [stats, freshUser] = await Promise.all([
+            jobService.getDashboardStats(),
+            authService.me().catch(() => storedUser),
+          ]);
           if (cancelled) {
             return;
           }
-          const hasProfile =
-            Boolean(stats.name?.trim()) ||
-            Boolean(storedUser?.isProfileCompleted) ||
-            Boolean(storedUser?.name?.trim());
+          const profileUser = freshUser ?? storedUser;
+          const hasProfile = profileUser?.isProfileCompleted === true;
           if (!hasProfile) {
             const phoneNumber =
-              storedUser?.phoneNumber?.replace(/\D/g, '').slice(-10) ?? '';
+              profileUser?.phoneNumber?.replace(/\D/g, '').slice(-10) ?? '';
             navigation.reset({
               index: 0,
               routes: [{name: 'ProfileSetup', params: {phoneNumber}}],
+            });
+            return;
+          }
+          if (profileUser?.isApproved !== true) {
+            navigation.reset({
+              index: 0,
+              routes: [{name: 'PendingApproval'}],
             });
             return;
           }
@@ -122,23 +130,39 @@ export function HomeScreen() {
             setServiceMode(stats.providerType);
             await storage.setServiceMode(stats.providerType);
           }
-          if (storedUser) {
+          if (profileUser) {
             const nextUser: ApiUser = {
-              ...storedUser,
-              name: stats.name || storedUser.name,
+              ...profileUser,
+              name: stats.name || profileUser.name,
               todayEarnings: stats.todayEarnings,
               totalEarnings: stats.totalEarnings,
               totalJobs: stats.totalJobs,
               totalMinutesServed: stats.totalMinutesServed,
               isOnline: stats.isOnline,
-              providerType: stats.providerType,
-              profilePicture: stats.profileImage || storedUser.profilePicture,
+              providerType: stats.providerType ?? profileUser.providerType,
+              profilePicture:
+                stats.profileImage || profileUser.profilePicture,
+              isApproved: profileUser.isApproved,
             };
             setUser(nextUser);
             await storage.setUser(nextUser);
           }
         } catch {
-          // Keep cached dashboard values if the API is unavailable.
+          if (storedUser?.isProfileCompleted !== true) {
+            const phoneNumber =
+              storedUser?.phoneNumber?.replace(/\D/g, '').slice(-10) ?? '';
+            navigation.reset({
+              index: 0,
+              routes: [{name: 'ProfileSetup', params: {phoneNumber}}],
+            });
+            return;
+          }
+          if (storedUser.isApproved !== true) {
+            navigation.reset({
+              index: 0,
+              routes: [{name: 'PendingApproval'}],
+            });
+          }
         }
       })();
       return () => {

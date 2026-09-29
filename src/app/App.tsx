@@ -9,6 +9,7 @@ import {OtpVerificationScreen} from '../screens/OtpVerificationScreen';
 import {ProfileSetupScreen} from '../screens/ProfileSetupScreen';
 import {RegistrationDocumentsScreen} from '../screens/RegistrationDocumentsScreen';
 import {BankDetailsScreen} from '../screens/BankDetailsScreen';
+import {PendingApprovalScreen} from '../screens/PendingApprovalScreen';
 import {HomeScreen} from '../screens/HomeScreen';
 import {ActiveCareServicesScreen} from '../screens/ActiveCareServicesScreen';
 import {EarningsScreen} from '../screens/EarningsScreen';
@@ -99,6 +100,7 @@ function App() {
                 session.route === 'BankDetails' ? session.phoneNumber : '',
             }}
           />
+          <Stack.Screen name="PendingApproval" component={PendingApprovalScreen} />
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen
             name="ActiveCareServices"

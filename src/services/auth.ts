@@ -31,15 +31,31 @@ const toLocalPhone = (phone: string): string =>
   phone.replace(/\D/g, '').slice(-10);
 
 const isUserProfileComplete = (user: ApiUser): boolean =>
-  Boolean(user.isProfileCompleted) ||
-  Boolean(user.name && user.name.trim().length >= 3);
+  user.isProfileCompleted === true;
+
+/**
+ * `POST /api/provider/login` message decides the next screen.
+ * "Login successful" / "Profile completed" mean the provider profile is done.
+ * "Please complete profile" means signup is still required.
+ */
+const profileCompleteFromLoginMessage = (
+  message: string,
+  user: ApiUser,
+): boolean => {
+  if (message === 'Please complete profile') {
+    return false;
+  }
+  if (message === 'Login successful' || message === 'Profile completed') {
+    return true;
+  }
+  return user.isProfileCompleted === true;
+};
 
 const mergeDashboardIntoUser = (
   user: ApiUser,
   stats: ProviderDashboardStats,
 ): ApiUser => {
   const dashboardName = stats.name?.trim() || '';
-  const hasDashboardProfile = dashboardName.length >= 3;
 
   return {
     ...user,
@@ -51,14 +67,14 @@ const mergeDashboardIntoUser = (
     totalEarnings: stats.totalEarnings,
     totalJobs: stats.totalJobs,
     totalMinutesServed: stats.totalMinutesServed,
-    isProfileCompleted: user.isProfileCompleted || hasDashboardProfile,
+    isProfileCompleted: user.isProfileCompleted === true,
+    isApproved: user.isApproved === true,
   };
 };
 
 /**
- * After login the backend creates a bare provider (phone only). Dashboard
- * stats are the source of truth: an existing caretaker has a name; a new
- * one does not and must complete Profile Setup.
+ * Fills earnings onto a logged-in provider. Profile completion and approval
+ * stay on the login/profile flags; dashboard stats do not grant access.
  */
 const enrichWithDashboard = async (user: ApiUser): Promise<ApiUser> => {
   try {
@@ -136,6 +152,7 @@ const normalizeProvider = (payload: unknown): ApiUser => {
       firstString(source.profileImage, source.profilePicture) || null,
     isOnline: Boolean(source.isOnline),
     isProfileCompleted: Boolean(source.isProfileCompleted),
+    isApproved: source.isApproved === true,
     lat,
     lng,
   };
@@ -146,26 +163,34 @@ type ProviderAuthPayload = {
   provider?: unknown;
 };
 
-const toLoginData = (payload: unknown): LoginData => {
+const toLoginData = (payload: unknown, message: string): LoginData => {
   const record = asRecord(payload);
   const nested = asRecord(record.data);
-  const user = normalizeProvider(record.provider ?? nested.provider ?? payload);
+  const parsed = normalizeProvider(record.provider ?? nested.provider ?? payload);
   const token = firstString(record.token, nested.token);
 
   if (!token) {
     throw new Error('Login succeeded but no session token was returned.');
   }
 
+  const isProfileComplete = profileCompleteFromLoginMessage(message, parsed);
+  const user: ApiUser = {
+    ...parsed,
+    isProfileCompleted: isProfileComplete,
+  };
+
   return {
     token,
     user,
-    isProfileComplete: isUserProfileComplete(user),
+    isProfileComplete,
+    message,
   };
 };
 
 export type RestoredSession =
   | {route: 'Login'}
   | {route: 'Home'}
+  | {route: 'PendingApproval'}
   | {route: 'ProfileSetup'; phoneNumber: string}
   | {route: 'RegistrationDocuments'; phoneNumber: string}
   | {route: 'BankDetails'; phoneNumber: string};
@@ -174,24 +199,22 @@ const sessionFromUser = async (user: ApiUser): Promise<RestoredSession> => {
   const local = await storage.getLocalProfile();
   const phoneNumber = toLocalPhone(user.phoneNumber);
 
-  if (local?.registrationStep === 2) {
-    return {route: 'RegistrationDocuments', phoneNumber};
+  if (!isUserProfileComplete(user)) {
+    if (local?.registrationStep === 2) {
+      return {route: 'RegistrationDocuments', phoneNumber};
+    }
+    if (local?.registrationStep === 3) {
+      return {route: 'BankDetails', phoneNumber};
+    }
+    return {route: 'ProfileSetup', phoneNumber};
   }
 
-  if (local?.registrationStep === 3) {
-    return {route: 'BankDetails', phoneNumber};
+  // "Login successful" still waits here until an admin sets isApproved.
+  if (user.isApproved !== true) {
+    return {route: 'PendingApproval'};
   }
 
-  if (
-    isUserProfileComplete(user) &&
-    local?.registrationStep !== 1 &&
-    local?.registrationStep !== 2 &&
-    local?.registrationStep !== 3
-  ) {
-    return {route: 'Home'};
-  }
-
-  return {route: 'ProfileSetup', phoneNumber};
+  return {route: 'Home'};
 };
 
 const firebaseAuthMessage = (error: unknown, fallback: string): Error => {
@@ -350,12 +373,15 @@ export const authService = {
     },
   ): Promise<LoginData> {
     const {keepSignedIn = true, ...loginFields} = extra ?? {};
-    const payload = await api.post<ProviderAuthPayload>('/login', {
-      baseUrl: PROVIDER_API_BASE_URL,
-      body: {idToken, ...loginFields},
-    });
+    const {message, data: payload} = await api.postResult<ProviderAuthPayload>(
+      '/login',
+      {
+        baseUrl: PROVIDER_API_BASE_URL,
+        body: {idToken, ...loginFields},
+      },
+    );
 
-    const data = toLoginData(payload);
+    const data = toLoginData(payload, message);
 
     await storage.setToken(data.token);
     await storage.setUser(data.user);

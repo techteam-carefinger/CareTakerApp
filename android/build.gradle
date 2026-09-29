@@ -19,4 +19,8 @@ buildscript {
     }
 }
 
+// Lets libraries such as react-native-gesture-handler resolve React Native
+// without shelling out to `node`, which the Gradle daemon often cannot see.
+ext.REACT_NATIVE_NODE_MODULES_DIR = new File(rootDir, "../node_modules/react-native").absolutePath
+
 apply plugin: "com.facebook.react.rootproject"

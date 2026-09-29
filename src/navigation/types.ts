@@ -15,6 +15,7 @@ export type RootStackParamList = {
   BankDetails: {
     phoneNumber: string;
   };
+  PendingApproval: undefined;
   Home: undefined;
   ActiveCareServices: undefined;
   Earnings: undefined;

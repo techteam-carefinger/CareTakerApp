@@ -85,7 +85,7 @@ const buildFormData = (
 async function request<T>(
   path: string,
   {auth = false, body, form, files, baseUrl}: RequestOptions = {},
-): Promise<T> {
+): Promise<ApiResponse<T>> {
   const isMultipart = Boolean(form || files);
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -134,10 +134,20 @@ async function request<T>(
     );
   }
 
-  return payload.data as T;
+  return payload;
 }
 
 export const api = {
-  post: <T>(path: string, options?: RequestOptions) =>
-    request<T>(path, options),
+  post: async <T>(path: string, options?: RequestOptions) => {
+    const payload = await request<T>(path, options);
+    return payload.data as T;
+  },
+  /** Same as `post`, but keeps the backend `message` (login uses this). */
+  postResult: async <T>(path: string, options?: RequestOptions) => {
+    const payload = await request<T>(path, options);
+    return {
+      message: payload.message ?? '',
+      data: payload.data as T,
+    };
+  },
 };

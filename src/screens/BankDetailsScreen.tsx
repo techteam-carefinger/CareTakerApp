@@ -104,7 +104,7 @@ export function BankDetailsScreen({navigation, route}: BankDetailsScreenProps) {
 
     setIsSaving(true);
     try {
-      await authService.updateProfile({
+      const user = await authService.updateProfile({
         accountHolderName: trimmedHolderName,
         bankName: trimmedBankName,
         accountNumber: trimmedAccountNumber,
@@ -120,7 +120,7 @@ export function BankDetailsScreen({navigation, route}: BankDetailsScreenProps) {
       });
       navigation.reset({
         index: 0,
-        routes: [{name: 'Home'}],
+        routes: [{name: user.isApproved ? 'Home' : 'PendingApproval'}],
       });
     } catch (error) {
       const message =

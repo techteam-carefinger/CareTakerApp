@@ -16,6 +16,7 @@ export interface ApiUser {
   isOnline?: boolean;
   providerType?: 'free' | 'paid';
   isProfileCompleted?: boolean;
+  isApproved?: boolean;
   totalEarnings?: number;
   todayEarnings?: number;
   totalJobs?: number;
@@ -28,6 +29,8 @@ export interface LoginData {
   token: string;
   user: ApiUser;
   isProfileComplete: boolean;
+  /** Backend `message` from `POST /api/provider/login`. */
+  message: string;
 }
 
 export interface ApiResponse<T> {

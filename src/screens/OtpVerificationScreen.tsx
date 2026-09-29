@@ -63,11 +63,13 @@ export function OtpVerificationScreen({
         routes:
           session.route === 'Home'
             ? [{name: 'Home'}]
-            : session.route === 'RegistrationDocuments'
-              ? [{name: 'RegistrationDocuments', params: {phoneNumber: nextPhone}}]
-              : session.route === 'BankDetails'
-                ? [{name: 'BankDetails', params: {phoneNumber: nextPhone}}]
-                : [{name: 'ProfileSetup', params: {phoneNumber: nextPhone}}],
+            : session.route === 'PendingApproval'
+              ? [{name: 'PendingApproval'}]
+              : session.route === 'RegistrationDocuments'
+                ? [{name: 'RegistrationDocuments', params: {phoneNumber: nextPhone}}]
+                : session.route === 'BankDetails'
+                  ? [{name: 'BankDetails', params: {phoneNumber: nextPhone}}]
+                  : [{name: 'ProfileSetup', params: {phoneNumber: nextPhone}}],
       });
     },
     [keepSignedIn, navigation, phoneNumber],

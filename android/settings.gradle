@@ -1,6 +1,57 @@
 pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
 plugins { id("com.facebook.react.settings") }
-extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+
+// Android Studio starts the Gradle daemon with PATH=/usr/bin:/bin:/usr/sbin:/sbin,
+// so a bare `node`/`npx` command fails even when Node is installed via Homebrew.
+def resolveNodeBinary() {
+    def candidates = []
+    def fromEnv = System.getenv("NODE_BINARY")
+    if (fromEnv) {
+        candidates.add(fromEnv)
+    }
+    def localPropsFile = new File(settingsDir, "local.properties")
+    if (localPropsFile.exists()) {
+        def props = new Properties()
+        localPropsFile.withInputStream { props.load(it) }
+        def fromLocal = props.getProperty("node.binary")
+        if (fromLocal) {
+            candidates.add(fromLocal)
+        }
+    }
+    def pathEnv = System.getenv("PATH")
+    if (pathEnv) {
+        pathEnv.split(File.pathSeparator).each { dir ->
+            candidates.add(new File(dir, "node").absolutePath)
+        }
+    }
+    candidates.add("/opt/homebrew/opt/node@22/bin/node")
+    candidates.add("/opt/homebrew/bin/node")
+    candidates.add("/usr/local/opt/node@22/bin/node")
+    candidates.add("/usr/local/bin/node")
+    def nvmDir = new File(System.getProperty("user.home"), ".nvm/versions/node")
+    if (nvmDir.isDirectory()) {
+        def versionDirs = nvmDir.listFiles()?.findAll { it.isDirectory() }?.sort { it.name } ?: []
+        versionDirs.reverseEach { dir ->
+            candidates.add(new File(dir, "bin/node").absolutePath)
+        }
+    }
+    def found = candidates.find { path ->
+        def file = new File(path)
+        file.isFile() && file.canExecute()
+    }
+    if (found == null) {
+        throw new GradleException("Could not find node. Set NODE_BINARY or node.binary in android/local.properties.")
+    }
+    return new File(found).canonicalPath
+}
+
+def nodeBinary = resolveNodeBinary()
+gradle.ext.nodeBinary = nodeBinary
+def cliBin = new File(settingsDir, "../node_modules/@react-native-community/cli/build/bin.js").canonicalPath
+
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+    ex.autolinkLibrariesFromCommand([nodeBinary, cliBin, "config"])
+}
 rootProject.name = 'caretakerapp'
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')

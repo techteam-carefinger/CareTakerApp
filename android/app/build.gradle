@@ -8,6 +8,12 @@ apply plugin: "com.google.gms.google-services"
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
 react {
+    // Use an absolute Node path so bundle/codegen work when the daemon PATH
+    // does not include Homebrew or nvm.
+    if (gradle.ext.has("nodeBinary")) {
+        nodeExecutableAndArgs = [gradle.ext.nodeBinary]
+    }
+
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '../..'
     // root = file("../../")
