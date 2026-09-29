@@ -118,9 +118,11 @@ export function BankDetailsScreen({navigation, route}: BankDetailsScreenProps) {
         ifscCode: trimmedIfsc,
         registrationStep: 'done',
       });
+      const synced = await authService.syncDashboard();
+      const nextUser = synced ?? user;
       navigation.reset({
         index: 0,
-        routes: [{name: user.isApproved ? 'Home' : 'PendingApproval'}],
+        routes: [{name: nextUser.isApproved ? 'Home' : 'PendingApproval'}],
       });
     } catch (error) {
       const message =

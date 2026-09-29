@@ -73,14 +73,18 @@ const mergeDashboardIntoUser = (
 };
 
 /**
- * Fills earnings onto a logged-in provider. Profile completion and approval
- * stay on the login/profile flags; dashboard stats do not grant access.
+ * `POST /api/provider/dashboard-stats` after login or signup.
+ * Earnings come from that response. Approval still comes from the provider.
  */
 const enrichWithDashboard = async (user: ApiUser): Promise<ApiUser> => {
   try {
     const stats = await jobService.getDashboardStats();
     const nextUser = mergeDashboardIntoUser(user, stats);
     await storage.setUser(nextUser);
+    await storage.setOnline(stats.isOnline);
+    if (stats.providerType) {
+      await storage.setServiceMode(stats.providerType);
+    }
     return nextUser;
   } catch {
     return user;
@@ -393,6 +397,18 @@ export const authService = {
       user,
       isProfileComplete: isUserProfileComplete(user),
     };
+  },
+
+  /**
+   * Loads `POST /api/provider/dashboard-stats` for the saved session.
+   * Called when signup finishes, and again whenever the dashboard opens.
+   */
+  async syncDashboard(): Promise<ApiUser | null> {
+    const user = await storage.getUser();
+    if (!user) {
+      return null;
+    }
+    return enrichWithDashboard(user);
   },
 
   async getSessionRoute(): Promise<RestoredSession> {
