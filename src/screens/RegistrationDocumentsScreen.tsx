@@ -55,10 +55,10 @@ export function RegistrationDocumentsScreen({
 }: RegistrationDocumentsScreenProps) {
   const {phoneNumber} = route.params;
 
-  const [identityFront, setIdentityFront] = useState<UploadFile | null>(null);
-  const [identityBack, setIdentityBack] = useState<UploadFile | null>(null);
-  const [licenseFront, setLicenseFront] = useState<UploadFile | null>(null);
-  const [licenseBack, setLicenseBack] = useState<UploadFile | null>(null);
+  const [aadhaarFront, setAadhaarFront] = useState<UploadFile | null>(null);
+  const [aadhaarBack, setAadhaarBack] = useState<UploadFile | null>(null);
+  const [panFront, setPanFront] = useState<UploadFile | null>(null);
+  const [panBack, setPanBack] = useState<UploadFile | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const onBack = () => {
@@ -79,10 +79,10 @@ export function RegistrationDocumentsScreen({
   };
 
   const isContinueDisabled =
-    !identityFront ||
-    !identityBack ||
-    !licenseFront ||
-    !licenseBack ||
+    !aadhaarFront ||
+    !aadhaarBack ||
+    !panFront ||
+    !panBack ||
     isSaving;
 
   const onContinue = async () => {
@@ -93,10 +93,10 @@ export function RegistrationDocumentsScreen({
     setIsSaving(true);
     try {
       await authService.updateProfile({
-        aadhaarFrontImage: identityFront,
-        aadhaarBackImage: identityBack,
-        licenseFrontImage: licenseFront,
-        licenseBackImage: licenseBack,
+        aadhaarFrontImage: aadhaarFront,
+        aadhaarBackImage: aadhaarBack,
+        licenseFrontImage: panFront,
+        licenseBackImage: panBack,
       });
       const existing = await storage.getLocalProfile();
       await storage.setLocalProfile({
@@ -128,31 +128,31 @@ export function RegistrationDocumentsScreen({
             <Ionicons name="chevron-back" size={22} color={COLORS.textPrimary} />
           </Pressable>
 
-          <Text style={styles.sectionTitle}>Upload identity</Text>
+          <Text style={styles.sectionTitle}>Upload Aadhaar card</Text>
           <View style={styles.cardRow}>
             <DocumentCard
-              imageUri={identityFront?.uri}
+              imageUri={aadhaarFront?.uri}
               buttonLabel="Upload front"
-              onUpload={() => void onUpload(setIdentityFront)}
+              onUpload={() => void onUpload(setAadhaarFront)}
             />
             <DocumentCard
-              imageUri={identityBack?.uri}
+              imageUri={aadhaarBack?.uri}
               buttonLabel="Upload back"
-              onUpload={() => void onUpload(setIdentityBack)}
+              onUpload={() => void onUpload(setAadhaarBack)}
             />
           </View>
 
-          <Text style={styles.sectionTitle}>Upload License</Text>
+          <Text style={styles.sectionTitle}>Upload PAN card</Text>
           <View style={styles.cardRow}>
             <DocumentCard
-              imageUri={licenseFront?.uri}
+              imageUri={panFront?.uri}
               buttonLabel="Upload front"
-              onUpload={() => void onUpload(setLicenseFront)}
+              onUpload={() => void onUpload(setPanFront)}
             />
             <DocumentCard
-              imageUri={licenseBack?.uri}
+              imageUri={panBack?.uri}
               buttonLabel="Upload back"
-              onUpload={() => void onUpload(setLicenseBack)}
+              onUpload={() => void onUpload(setPanBack)}
             />
           </View>
 
